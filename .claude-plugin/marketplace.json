@@ -1,0 +1,12 @@
+{
+  "name": "pixel-forge",
+  "owner": { "name": "abhollow" },
+  "description": "Pixel Forge: idea-to-launch workflow for retro pixel-art games with Claude, Godot 4 and Magnific.",
+  "plugins": [
+    {
+      "name": "pixel-forge",
+      "source": "./plugins/pixel-forge",
+      "description": "Take a pixel-art game from idea to shipped build: concept research, design bible, art pipeline, Godot 4, playtesting, iteration, debugging, delivery and launch."
+    }
+  ]
+}

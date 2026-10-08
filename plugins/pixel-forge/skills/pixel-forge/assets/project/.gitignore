@@ -1,0 +1,44 @@
+# Godot's cache: regenerated on open/--import. A stale copy is the usual cause
+# of "could not find type" after pulling. Export credentials (keystore
+# passwords) live in .godot/export_credentials.cfg - also ignored here.
+# export_presets.cfg itself is safe to commit, and *.import / *.uid files
+# should be committed (import options and stable resource ids live there).
+.godot/
+export_credentials.cfg
+
+# Machine-specific notes (Godot path, gh path, python command) and the bot
+# runner's temporary user-dir redirect. Never commit either.
+/CLAUDE.local.md
+/override.cfg
+
+# Review renders: only the decision images in docs/screens/keep/ are committed
+# (committing every render can grow the repo by hundreds of MB in a week).
+# The .gdignore must stay, or a fresh clone imports every screenshot.
+/docs/screens/*
+!/docs/screens/.gdignore
+!/docs/screens/keep/
+
+# raw_art/ (Magnific originals) is committed while small. When it grows past
+# a few hundred MB, uncomment this and rely on docs/assets.md (creation ids
+# re-issue download links). Raw art can reach gigabytes over a project.
+# /raw_art/
+
+# Build output, bot runs, signing leftovers
+/build/
+/export/
+/android/
+/out/
+*.apk
+*.aab
+*.ipa
+*.idsig
+*.translation
+
+# Python
+__pycache__/
+*.pyc
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini

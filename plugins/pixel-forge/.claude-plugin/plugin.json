@@ -1,0 +1,19 @@
+{
+  "name": "pixel-forge",
+  "version": "1.0.0",
+  "description": "Take a pixel-art game from idea to shipped build with Claude, Godot 4 and Magnific: concept research, design bible, art pipeline, playtesting, iteration, debugging, delivery and launch.",
+  "author": {
+    "name": "abhollow"
+  },
+  "homepage": "https://github.com/abhollow/pixel-forge",
+  "repository": "https://github.com/abhollow/pixel-forge",
+  "keywords": [
+    "godot",
+    "pixel-art",
+    "game-dev",
+    "magnific",
+    "gamedev",
+    "mobile"
+  ],
+  "license": "MIT"
+}

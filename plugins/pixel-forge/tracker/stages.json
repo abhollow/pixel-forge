@@ -1,0 +1,15 @@
+{
+  "$comment": "The Pixel Forge stage table: canonical for the tracker page, the morning check and docs/status.md. A project's progress (0-100) sits inside its stage's min-max band. 'exit' is what must be true to leave the stage.",
+  "version": 1,
+  "stages": [
+    { "id": "idea",      "name": "Idea",          "min": 0,   "max": 9,   "exit": "Started: the project has its own folder (Start pressed on the page, or a folder found in the projects root)." },
+    { "id": "concept",   "name": "Concept",       "min": 10,  "max": 19,  "exit": "Pitch, hook, comparables and scope written in docs/concept.md." },
+    { "id": "design",    "name": "Design",        "min": 20,  "max": 34,  "exit": "docs/bible.md written, forge.json set up and the palette locked." },
+    { "id": "prototype", "name": "Prototype",     "min": 35,  "max": 49,  "exit": "Grey-box core loop playable, and the playtest gate answered or a waiver recorded." },
+    { "id": "core",      "name": "Core build",    "min": 50,  "max": 64,  "exit": "Core loop works end to end and the art direction is locked." },
+    { "id": "content",   "name": "Art & content", "min": 65,  "max": 79,  "exit": "Every needed asset at acceptable quality, and content lives in data." },
+    { "id": "polish",    "name": "Polish & test", "min": 80,  "max": 89,  "exit": "A full session with no placeholders, human playtests done, smoke test green." },
+    { "id": "launch",    "name": "Launch prep",   "min": 90,  "max": 99,  "exit": "Release build signed, store page ready, trailer made." },
+    { "id": "shipped",   "name": "Shipped",       "min": 100, "max": 100, "exit": "Public release." }
+  ]
+}

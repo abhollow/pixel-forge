@@ -1,0 +1,66 @@
+name: Smoke test
+
+# Imports the project and runs tools/smoke_test.gd headless on every push to
+# main and every pull request, with the ONE Godot version pinned in forge.json
+# (godot_version). Pass/fail is the test's EXIT CODE: smoke_test.gd quits 1 on
+# any failed check (and 2 if its watchdog fires). It also fails if the log
+# shows SCRIPT ERROR or SHADER ERROR. Never gate on `grep "0 failed"`: it also
+# matches "10 failed", and without pipefail `| tee` throws the exit code away.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash   # bash -eo pipefail: a failing godot fails the step, tee or not
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Godot version from forge.json
+        id: godot
+        run: |
+          V=$(jq -r '.godot_version // empty' forge.json)
+          if [ -z "$V" ]; then echo "forge.json has no godot_version"; exit 1; fi
+          if [[ "$V" =~ ^([0-9]+\.[0-9]+)\.0$ ]]; then V="${BASH_REMATCH[1]}"; fi   # x.y.0 is released as x.y
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Godot $V"
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin   # outside the project, so the import never scans it
+          key: godot-${{ steps.godot.outputs.version }}-linux-x86_64
+
+      - name: Install Godot
+        run: |
+          V="${{ steps.godot.outputs.version }}"
+          G="$HOME/godot-bin/godot"
+          if [ ! -x "$G" ]; then
+            mkdir -p "$HOME/godot-bin"
+            curl -fsSL -o "$RUNNER_TEMP/godot.zip" "https://github.com/godotengine/godot/releases/download/${V}-stable/Godot_v${V}-stable_linux.x86_64.zip"
+            unzip -q "$RUNNER_TEMP/godot.zip" -d "$HOME/godot-bin"
+            mv "$HOME/godot-bin/Godot_v${V}-stable_linux.x86_64" "$G"
+            chmod +x "$G"
+          fi
+          "$G" --headless --version
+
+      # Import FIRST: without it the class cache is missing and every
+      # class_name lookup fails with a confusing parse error.
+      - name: Import
+        run: timeout 600 "$HOME/godot-bin/godot" --headless --path . --import 2>&1 | tee "$RUNNER_TEMP/import.log"
+
+      - name: Smoke test
+        run: timeout 900 "$HOME/godot-bin/godot" --headless --path . --script res://tools/smoke_test.gd 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+
+      - name: No script or shader errors
+        run: |
+          if grep -nE "SCRIPT ERROR|SHADER ERROR" "$RUNNER_TEMP/smoke.log"; then
+            echo "::error::script or shader errors in the smoke test log"
+            exit 1
+          fi

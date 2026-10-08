@@ -1,0 +1,1273 @@
+<title>Idea to Launch</title>
+<script>
+/* =====================================================================================================
+   CONFIG: everything personal about this tracker lives in this one block.
+   /pixel-forge:tracker-setup fills it in. You can also edit it by hand and republish the page to the same URL:
+   the projects live in the artifact's database, not in this file, so republishing never loses data.
+   File paths (mascot.img, scene.img, tracks) are relative to this page. Publish those files next to it.
+   ===================================================================================================== */
+const CONFIG = {
+  title: "Idea → Launch",                  // page heading; an arrow is drawn in the accent colour
+  tagline: "Every project, from first idea to shipped.",
+  about: "",                               // what you make, for the mascot's advice, e.g. "mostly pixel-art mobile games in Godot"
+  projectsLabel: "PROJECTS",               // how the projects root is named on the page ("PROJECTS\MY-GAME")
+  pathSep: "/",                            // "\\" on Windows
+  machineLabel: "this computer",           // "this PC", "my Mac"...
+  checkTimeLabel: "5 AM",                  // when the daily check runs (the scheduler adds a few minutes of jitter)
+  staleHours: 26,                          // the sync pill turns amber when the last full check is older than this
+
+  mascot: {
+    name: "Pip",
+    role: "Project manager",
+    img: null,                             // your pixel-art portrait on a transparent background ("mascot.png"); null shows the initial
+    size: 112,                             // the image's native pixel grid: shown at 1x on the desk, 0.5x on phones
+    alt: "",                               // describe the portrait when img is set
+    glyph: "star",                         // 9x9 icon for tips (see GLYPHS below: star, note, sparkle, paw...)
+    persona: "You are Pip, the developer's calm, practical project manager. You are steady and encouraging without hype, you give one clear recommendation at a time, and you keep answers short and concrete."
+  },
+
+  tracks: [],                              // lo-fi radio, e.g. ["morning.mp3", "focus.mp3"]; empty hides the button
+  radio: { volume: 0.5, crossfadeMs: 4500, leadSeconds: 6 },
+
+  // Header. null = a plain gradient header with no canvas (the default; no artwork ships with the tracker).
+  // For your own pixel-art header, publish the image next to the page and set an object here (or the path of
+  // a JSON file holding it, e.g. "scene.json"). Only img is required. Coordinates are in the image's own pixels;
+  // leave any effect out (or null) to switch it off. Every key is described in tracker/README.md, e.g.:
+  //   scene: { img: "header.png", alt: "Pixel-art night scene: a lit cottage in falling snow", focus: "50% 70%",
+  //            chimney: { x: 516, y: 16 }, starRegion: { x0: 1, y0: 1, x1: 360, y1: 85 }, flakes: 1400 }
+  scene: null,
+
+  gamification: false,                     // XP, levels, streaks and badges: built, hidden by default
+
+  // Same table as tracker/stages.json (id, name, lower bound in %). Colours run cold to warm.
+  stages: [
+    { id: "idea",      name: "Idea",          min: 0,   glyph: "bulb",    color: "#4553A8" },
+    { id: "concept",   name: "Concept",       min: 10,  glyph: "search",  color: "#5654B3" },
+    { id: "design",    name: "Design",        min: 20,  glyph: "pencil",  color: "#6A55B8" },
+    { id: "prototype", name: "Prototype",     min: 35,  glyph: "box",     color: "#8456B4" },
+    { id: "core",      name: "Core build",    min: 50,  glyph: "gear",    color: "#A6599F" },
+    { id: "content",   name: "Art & content", min: 65,  glyph: "picture", color: "#C55F84" },
+    { id: "polish",    name: "Polish & test", min: 80,  glyph: "sparkle", color: "#DE6E66" },
+    { id: "launch",    name: "Launch prep",   min: 90,  glyph: "rocket",  color: "#EB8A47" },
+    { id: "shipped",   name: "Shipped",       min: 100, glyph: "flag",    color: "#EFA634" }
+  ]
+};
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Pixelify+Sans:wght@500;700&display=swap">
+<style>
+/* Layout: a full-bleed header (an animated pixel scene, or a plain gradient), then one centred column:
+   the brain dump (first, for quick capture), the mascot's desk, the trail (stages at a glance), projects in development, and the shipped ledger.
+   Colour: night blues with firelight amber as the one warm accent; progress runs cold to warm, idea to launch.
+   Numbers use Figtree, not the pixel display font, so "82" never reads as "88". */
+:root{
+  --bg:#ECF0F7; --surface:#FFFFFF; --surface-2:#F3F6FB; --ink:#141A2C; --muted:#536079; --faint:#8791A6;
+  --line:#D7DEEA; --track:#DFE5F0; --tile:#E3E9F3;
+  --accent:#B45F17; --accent-ink:#FFFFFF; --accent-soft:#FBEBD9;
+  --good:#1D7A55; --good-bg:#DDF1E7; --warn:#9B5A00; --warn-bg:#FAEDD5; --cold:#3A66AE; --cold-bg:#E1EAF8;
+  --g1:#3F4FA6; --g2:#7656B4; --g3:#D9683E; --g4:#EFA634;
+  --heat0:#DFE5F0; --heat1:#F3D2A6; --heat2:#ECA55A; --heat3:#D9683E;
+  --hero-ink:#F4F1FF; --hero-muted:#CDD0EE; --hero-shadow:#0A0D26;
+  --f-display:"Pixelify Sans","Courier New",monospace;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --r:14px;
+  --mascot-px:112px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1120; --surface:#141B2D; --surface-2:#1A2237; --ink:#E6EBF5; --muted:#A2ADC3; --faint:#6E7991;
+  --line:#263049; --track:#212A41; --tile:#1F2840;
+  --accent:#F2A04E; --accent-ink:#1A1006; --accent-soft:#33240F;
+  --good:#5AC694; --good-bg:#14302A; --warn:#E8B04E; --warn-bg:#33291A; --cold:#8DB2F0; --cold-bg:#1B2742;
+  --g1:#5868CC; --g2:#9A6FD6; --g3:#EC7B52; --g4:#F6BA4E;
+  --heat0:#212A41; --heat1:#5A3E22; --heat2:#A8642B; --heat3:#EC7B52;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0C1120; --surface:#141B2D; --surface-2:#1A2237; --ink:#E6EBF5; --muted:#A2ADC3; --faint:#6E7991;
+  --line:#263049; --track:#212A41; --tile:#1F2840;
+  --accent:#F2A04E; --accent-ink:#1A1006; --accent-soft:#33240F;
+  --good:#5AC694; --good-bg:#14302A; --warn:#E8B04E; --warn-bg:#33291A; --cold:#8DB2F0; --cold-bg:#1B2742;
+  --g1:#5868CC; --g2:#9A6FD6; --g3:#EC7B52; --g4:#F6BA4E;
+  --heat0:#212A41; --heat1:#5A3E22; --heat2:#A8642B; --heat3:#EC7B52;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+h1,h2,h3,h4{margin:0;text-wrap:balance}
+p,ul,ol{margin:0}
+a{color:inherit}
+.px-ico{width:18px;height:18px;flex:none;display:inline-block;vertical-align:middle}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;overflow:hidden;background:#0A0D26;height:clamp(250px,34vw,440px);color:var(--hero-ink)}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:68% 72%;image-rendering:pixelated;image-rendering:crisp-edges}
+.hero.static{height:auto;min-height:clamp(190px,24vw,300px);background:radial-gradient(120% 90% at 85% 110%,rgba(242,160,78,.28),rgba(242,160,78,0) 55%),linear-gradient(165deg,#1B2160 0%,#121747 45%,#0A0D26 100%)}
+.hero-scrim{position:absolute;inset:0;background:linear-gradient(100deg,rgba(8,10,34,.62) 0%,rgba(8,10,34,.28) 38%,rgba(8,10,34,0) 60%);pointer-events:none}
+.hero.static .hero-scrim{display:none}
+.hero-inner{position:relative;max-width:1040px;height:100%;margin:0 auto;padding-inline:16px;padding-block:22px 18px;display:flex;flex-direction:column;justify-content:space-between;gap:16px}
+.hero.static .hero-inner{min-height:inherit}
+@media (min-width:720px){.hero-inner{padding-inline:28px;padding-block:32px 24px}}
+.hero-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px 24px}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:clamp(32px,5.4vw,58px);line-height:1;letter-spacing:.01em;text-shadow:3px 3px 0 var(--hero-shadow)}
+.brand h1 .to{color:#FFC067}
+.brand p{color:var(--hero-muted);margin-top:8px;font-size:14.5px;text-shadow:1px 1px 0 var(--hero-shadow);max-width:34ch}
+.sync{display:flex;flex-direction:column;gap:2px;font-family:var(--f-mono);font-size:12px;color:var(--hero-muted);background:rgba(10,13,38,.55);padding:8px 11px;border-radius:10px;backdrop-filter:blur(2px)}
+.sync .now{display:flex;align-items:center;gap:8px;color:var(--hero-ink)}
+.dot{width:8px;height:8px;border-radius:2px;background:#7C84A8;flex:none}
+.dot.fresh{background:#6EE0A6}
+.dot.stale{background:#F5C25C}
+@media (max-width:560px){.sync{font-size:11px;padding:6px 9px}#nextText{display:none}}
+.radio{align-self:flex-start;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:rgba(10,13,38,.62);border:1px solid rgba(255,255,255,.12);padding:5px;border-radius:12px;backdrop-filter:blur(2px)}
+.radio-btn{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:7px;background:#FFC067;color:#2A1606;font-weight:700;font-size:13.5px;padding:6px 11px;border-radius:8px}
+.radio-btn:hover{filter:brightness(1.06)}
+.radio-btn[aria-pressed="true"]{background:#F4F1FF;color:#141A2C}
+.eq{display:inline-flex;gap:2px;align-items:flex-end;height:12px}
+.eq i{width:3px;background:currentColor;height:4px}
+.radio-btn[aria-pressed="true"] .eq i{animation:eq 1s steps(4) infinite}
+.radio-btn[aria-pressed="true"] .eq i:nth-child(2){animation-delay:-.35s}
+.radio-btn[aria-pressed="true"] .eq i:nth-child(3){animation-delay:-.7s}
+@keyframes eq{0%{height:3px}50%{height:12px}100%{height:6px}}
+@media (prefers-reduced-motion:reduce){.radio-btn .eq i{animation:none!important}}
+
+/* ---------- Page column ---------- */
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:24px 72px;display:flex;flex-direction:column;gap:36px}
+@media (min-width:720px){.wrap{padding-inline:28px;padding-block:32px 88px}}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+.sec-head h2{font-size:13px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.sec-head .count{font-family:var(--f-mono);font-size:12px;color:var(--faint)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.empty{padding:20px;border:1px dashed var(--line);border-radius:var(--r);color:var(--muted);background:var(--surface-2)}
+.notice{padding:14px 16px;border-radius:var(--r);background:var(--warn-bg);color:var(--warn);font-size:14px}
+
+/* ---------- Trail ---------- */
+.trail-scroll{overflow-x:auto;padding:14px 4px 6px;-webkit-overflow-scrolling:touch}
+.trail{position:relative;min-width:660px;--n:9}
+.trail-markers{position:relative;height:44px}
+.marker{position:absolute;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;text-decoration:none;transition:bottom .2s}
+.marker .m-ico{width:30px;height:30px;border-radius:8px;background:var(--tile);border:2px solid var(--mc,var(--line));display:grid;place-items:center;overflow:hidden}
+.marker img{width:100%;height:100%;object-fit:contain}
+.marker img.px{image-rendering:pixelated;padding:2px}
+.marker .m-mono{font-family:var(--f-display);font-weight:700;font-size:14px;color:var(--muted)}
+.marker .stem{width:2px;height:8px;background:var(--mc,var(--line))}
+.marker:hover .m-ico,.marker:focus-visible .m-ico{transform:translateY(-2px)}
+.trail-line{position:relative;height:6px;margin-inline:calc(100% / (2 * var(--n)));border-radius:3px;background:linear-gradient(90deg,var(--g1),var(--g2) 40%,var(--g3) 75%,var(--g4))}
+.trail-stops{list-style:none;padding:0;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));margin-top:-15px}
+.stop{display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;min-width:0}
+.stop-ico{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;background:var(--sc);color:#fff;border:3px solid var(--surface)}
+.stop-ico .px-ico{width:16px;height:16px}
+.stop-name{font-size:12px;font-weight:600;line-height:1.2;color:var(--ink)}
+.stop-pct{font-family:var(--f-mono);font-size:11px;color:var(--faint)}
+.stop-note{font-family:var(--f-mono);font-size:11px;color:var(--accent);min-height:1em}
+
+/* ---------- The mascot's desk ---------- */
+.desk{padding:18px;display:flex;flex-direction:column;gap:18px}
+.desk-main{display:grid;grid-template-columns:calc(var(--mascot-px) + 20px) minmax(0,1fr);gap:20px;align-items:start}
+.desk-portrait{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.desk-portrait .frame{width:calc(var(--mascot-px) + 8px);height:calc(var(--mascot-px) + 8px);border-radius:16px;background:linear-gradient(180deg,#26305E,#3B3F7A);display:grid;place-items:end center;overflow:hidden;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
+.desk-portrait img{width:var(--mascot-px);height:var(--mascot-px);image-rendering:pixelated}
+.desk-portrait .frame .mono{align-self:center;font-family:var(--f-num);font-weight:700;font-size:40px;color:#F4F1FF}
+.desk-name{font-family:var(--f-display);font-weight:700;font-size:20px;line-height:1}
+.desk-role{font-family:var(--f-mono);font-size:11.5px;color:var(--faint)}
+.desk-talk{display:flex;flex-direction:column;gap:12px;min-width:0}
+.bubble{position:relative;background:var(--surface-2);border:2px solid var(--ink);border-radius:4px;padding:12px 14px;box-shadow:4px 4px 0 var(--line);font-size:15px;max-width:70ch}
+.bubble::before{content:"";position:absolute;left:-12px;top:22px;border:6px solid transparent;border-right-color:var(--ink);border-width:6px 10px 6px 0}
+.bubble .when{display:block;font-family:var(--f-mono);font-size:11px;color:var(--faint);margin-top:6px}
+.focus{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--accent-soft);color:var(--ink)}
+.focus .tag{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.focus strong{display:block;font-size:15.5px;margin-top:2px}
+.focus p{color:var(--muted);font-size:14px;margin-top:3px}
+.focus .f-ico{width:34px;height:34px;border-radius:9px;background:var(--tile);overflow:hidden;flex:none;display:grid;place-items:center}
+.focus .f-ico img{width:100%;height:100%;object-fit:contain}
+.focus .f-ico img.px{image-rendering:pixelated;padding:3px}
+.nudges{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px}
+.nudges li{display:flex;gap:10px;align-items:flex-start;font-size:14px;min-width:0}
+.nudges .n-ico{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;margin-top:1px}
+.nudges .n-ico .px-ico{width:14px;height:14px}
+.n-attention .n-ico{background:var(--warn-bg);color:var(--warn)}
+.n-momentum .n-ico{background:var(--accent-soft);color:var(--accent)}
+.n-tip .n-ico{background:var(--cold-bg);color:var(--cold)}
+.n-git .n-ico{background:var(--warn-bg);color:var(--warn)}
+.n-good .n-ico{background:var(--good-bg);color:var(--good)}
+@media (max-width:620px){
+  .desk-main{grid-template-columns:1fr}
+  .desk-portrait{flex-direction:row;text-align:left;gap:12px}
+  .desk-portrait .frame{width:calc(var(--mascot-px) * .5 + 6px);height:calc(var(--mascot-px) * .5 + 6px);border-radius:12px}
+  .desk-portrait img{width:calc(var(--mascot-px) * .5);height:calc(var(--mascot-px) * .5)}
+  .desk-portrait .frame .mono{font-size:24px}
+  .bubble::before{display:none}
+}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.stat{padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);min-width:0}
+.stat .k{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);display:flex;align-items:center;gap:6px}
+.stat .v{font-family:var(--f-num);font-weight:700;font-size:26px;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums lining-nums}
+.stat .s{font-size:12.5px;color:var(--muted)}
+.xpbar{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;margin-top:6px}
+.xpbar i{height:8px;background:var(--track);border-radius:1px}
+.xpbar i.on{background:var(--g4)}
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+.badge{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 5px 6px;border-radius:9px;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--surface-2);color:var(--faint)}
+.badge .b-ico{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--track);color:var(--faint)}
+.badge .b-ico .px-ico{width:14px;height:14px}
+.badge.on{color:var(--ink);background:var(--surface)}
+.badge.on .b-ico{background:var(--accent);color:var(--accent-ink)}
+.ask{display:flex;flex-direction:column;gap:8px}
+.game{border-top:1px solid var(--line);padding-top:10px}
+.game>summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:4px 0}
+.game>summary::-webkit-details-marker{display:none}
+.game>summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s}
+.game[open]>summary::before{transform:rotate(45deg)}
+.game-title{font-size:13.5px;font-weight:600;color:var(--muted)}
+.game-sum{font-family:var(--f-mono);font-size:12px;color:var(--faint)}
+.game-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.ask form{display:flex;gap:8px}
+.ask input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:9px 12px;font-size:14.5px}
+.ask-quick{display:flex;flex-wrap:wrap;gap:6px}
+.chip-btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;color:var(--muted)}
+.chip-btn:hover{color:var(--ink);border-color:var(--faint)}
+.chip-btn:disabled{opacity:.5;cursor:default}
+.answer{white-space:pre-wrap;padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:14.5px;max-width:75ch}
+.answer-row{display:flex;flex-direction:column;gap:6px}
+
+/* ---------- Buttons, pills ---------- */
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:7px 13px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink);white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.quiet{border-color:transparent;background:transparent;color:var(--muted);padding-inline:8px}
+.btn.quiet:hover{color:var(--ink);background:var(--surface-2)}
+.btn:disabled{opacity:.55;cursor:default}
+.pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--f-mono);font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);white-space:nowrap;text-decoration:none}
+.pill .px-ico{width:13px;height:13px}
+.pill.good{background:var(--good-bg);border-color:transparent;color:var(--good)}
+.pill.warn{background:var(--warn-bg);border-color:transparent;color:var(--warn)}
+.pill.cold{background:var(--cold-bg);border-color:transparent;color:var(--cold)}
+.pill.hot{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+a.pill:hover{filter:brightness(.97);text-decoration:underline}
+.confirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13.5px;color:var(--muted)}
+
+/* ---------- Progress bar ---------- */
+.bar{position:relative;height:12px;border-radius:6px;background:var(--track);overflow:hidden}
+.bar .fill{position:absolute;inset:0 auto 0 0;border-radius:6px;background-image:linear-gradient(90deg,var(--g1),var(--g2) 40%,var(--g3) 75%,var(--g4));background-repeat:no-repeat}
+@media (prefers-reduced-motion:no-preference){.bar .fill{transition:width .6s cubic-bezier(.2,.7,.2,1)}}
+.bar .tick{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--surface)}
+.bar-legend{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:11px;color:var(--faint);margin-top:6px}
+
+/* ---------- Project rows ---------- */
+.list{display:flex;flex-direction:column;gap:14px}
+.proj{padding:18px;display:flex;flex-direction:column;gap:14px;scroll-margin-top:16px}
+.proj-head{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:16px;align-items:start}
+.icon{width:64px;height:64px;border-radius:14px;background:var(--tile);display:grid;place-items:center;overflow:hidden;flex:none}
+.icon img{width:100%;height:100%;object-fit:contain}
+.icon img.px{image-rendering:pixelated;padding:6px}
+.icon .mono{font-family:var(--f-display);font-weight:700;font-size:26px;color:var(--muted)}
+.title-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.title-row h3{font-size:19px;font-weight:700;line-height:1.25;margin-right:2px}
+.kind{font-family:var(--f-mono);font-size:12px;color:var(--faint);margin-top:2px}
+.summary{color:var(--ink);margin-top:8px;max-width:68ch}
+.pct{font-family:var(--f-num);font-weight:700;font-size:30px;line-height:1;text-align:right;font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.01em}
+.pct small{font-size:16px;color:var(--muted);margin-left:1px;font-weight:600}
+.facts{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.facts span{white-space:nowrap}
+.strip{display:inline-grid;grid-template-columns:repeat(14,8px);gap:2px;vertical-align:middle}
+.strip i{height:8px;border-radius:1px;background:var(--heat0)}
+.strip i.h1{background:var(--heat1)}.strip i.h2{background:var(--heat2)}.strip i.h3{background:var(--heat3)}
+@media (max-width:560px){
+  .proj{padding:14px}
+  .proj-head{grid-template-columns:52px minmax(0,1fr);gap:12px}
+  .icon{width:52px;height:52px;border-radius:12px}
+  .pct{grid-column:2;text-align:left;font-size:24px}
+}
+details.more{border-top:1px solid var(--line);padding-top:10px}
+details.more>summary{cursor:pointer;list-style:none;font-size:13.5px;font-weight:600;color:var(--muted);display:inline-flex;align-items:center;gap:6px;padding:4px 0}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+details.more[open]>summary::before{transform:rotate(45deg)}
+.more-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:12px}
+.more-body h4{margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.more-body ul{padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.blocker{grid-column:1/-1;padding:10px 12px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:14px}
+.spark{display:block;width:100%;max-width:280px;height:56px}
+.note-sm{font-family:var(--f-mono);font-size:11.5px;color:var(--faint);margin-top:2px}
+.actions{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:4px}
+.where{font-family:var(--f-mono);font-size:12px;color:var(--faint);margin-right:auto;overflow-wrap:anywhere}
+.setup{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:14px}
+.setup.queued{background:var(--cold-bg);color:var(--cold)}
+.setup input,.setup select,.field select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 9px;font-size:13.5px;min-width:0;width:200px;color:var(--ink)}
+.setup select{width:auto}
+.field select{width:100%;font-size:14px}
+
+/* ---------- Brain dump ---------- */
+.dump-form{display:flex;gap:10px;align-items:flex-end;padding:12px;border-radius:var(--r);border:1px dashed var(--faint);background:var(--surface-2)}
+.dump-form textarea{flex:1;min-width:0;resize:vertical;min-height:46px;border:0;background:transparent;font-size:15px;padding:4px 6px;outline:none}
+.dump-form:focus-within{border-style:solid;border-color:var(--accent)}
+.dump-list{list-style:none;padding:0;margin-top:12px;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.dump-list:empty{display:none}
+.note{padding:10px 12px 10px 16px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);min-width:0}
+.note:first-child{border-top:0}
+.note-row{display:flex;align-items:center;gap:6px 14px}
+.note-text{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px}
+.note .when{font-family:var(--f-mono);font-size:11.5px;color:var(--faint);white-space:nowrap}
+.note-actions{display:flex;gap:4px;flex:none}
+@media (max-width:560px){.note-row{flex-wrap:wrap}.note-text{flex-basis:100%}.note .when{margin-right:auto}}
+.start-panel{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:12px;font-weight:600;color:var(--muted)}
+.field input{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 9px;font-size:14px}
+.field .hint{font-family:var(--f-mono);font-size:11px;color:var(--faint)}
+
+/* ---------- Shipped ---------- */
+.ledger{overflow:hidden}
+.ship{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;border-top:1px solid var(--line)}
+.ship:first-child{border-top:0}
+.ship .icon{width:40px;height:40px;border-radius:10px}
+.ship .icon .mono{font-size:16px}
+.ship h3{font-size:15.5px;font-weight:700}
+.ship .sub{font-family:var(--f-mono);font-size:12px;color:var(--faint);overflow-wrap:anywhere}
+.ship .desc{font-size:13.5px;color:var(--muted);margin-top:4px}
+.ship .right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
+@media (max-width:560px){.ship{grid-template-columns:40px minmax(0,1fr)}.ship .right{grid-column:2;align-items:flex-start;text-align:left;flex-direction:row;flex-wrap:wrap;gap:8px}}
+
+.foot{font-size:13px;color:var(--faint);border-top:1px solid var(--line);padding-top:18px;max-width:76ch}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:var(--ink);color:var(--bg);padding:9px 10px 9px 16px;border-radius:12px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:5;max-width:calc(100% - 32px)}
+.toast .btn{background:transparent;color:var(--bg);border-color:rgba(255,255,255,.35)}
+</style>
+
+<header class="hero" id="hero">
+  <canvas id="scene" width="640" height="272" aria-hidden="true"></canvas>
+  <span class="sr" id="heroAlt"></span>
+  <div class="hero-scrim"></div>
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div class="brand">
+        <h1 id="brandTitle">Idea <span class="to">→</span> Launch</h1>
+        <p id="brandTagline"></p>
+      </div>
+      <div class="sync" aria-live="polite">
+        <span class="now"><span class="dot" id="syncDot"></span><span id="syncText">Waiting for the first check</span></span>
+        <span id="quickText"></span>
+        <span id="nextText"></span>
+      </div>
+    </div>
+    <div class="radio" id="radio">
+      <button class="radio-btn" id="radioBtn" type="button" aria-pressed="false" aria-label="Play music"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><span id="radioLabel">Play</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="notice" class="notice" hidden></div>
+
+  <section aria-labelledby="h-dump" id="idea">
+    <div class="sec-head"><h2 id="h-dump">Brain dump</h2><span class="count" id="c-dump"></span></div>
+    <form class="dump-form" id="dumpForm" autocomplete="off">
+      <label class="sr" for="dumpText">New idea</label>
+      <textarea id="dumpText" rows="2" maxlength="1200" placeholder="Jot an idea down. Enter saves it to the list; Shift+Enter adds a line."></textarea>
+      <button class="btn primary" type="submit" id="dumpBtn">Save</button>
+    </form>
+    <ul class="dump-list" id="dump"></ul>
+  </section>
+
+  <section aria-labelledby="h-desk">
+    <div class="sec-head"><h2 id="h-desk">The desk</h2><span class="count" id="c-desk"></span></div>
+    <div class="card desk">
+      <div class="desk-main">
+        <div class="desk-portrait">
+          <div class="frame" id="mascotFrame"><img id="mascotImg" src="" alt=""></div>
+          <div><div class="desk-name" id="mascotName"></div><div class="desk-role" id="mascotRole"></div></div>
+        </div>
+        <div class="desk-talk">
+          <div class="bubble" id="deskMsg"></div>
+          <div class="ask" id="askBox" hidden>
+            <form id="askForm" autocomplete="off">
+              <label class="sr" for="askInput" id="askLabel">Ask</label>
+              <input id="askInput" maxlength="400" placeholder="Ask about your projects">
+              <button class="btn primary" type="submit" id="askBtn">Ask</button>
+              <button class="btn" type="button" id="askStop" hidden>Stop</button>
+            </form>
+            <div class="ask-quick">
+              <button class="chip-btn" type="button" data-q="What should I work on next, and why? Give one clear pick and the first 30-minute step.">What should I work on next?</button>
+              <button class="chip-btn" type="button" data-q="Which project needs attention right now, based on momentum, git state and blockers? Say what to do about it.">What needs attention?</button>
+              <button class="chip-btn" type="button" data-q="Plan my week across these projects: a short day-by-day list that keeps every active project from freezing but finishes the closest one first.">Plan my week</button>
+            </div>
+            <div class="answer" id="askAnswer" hidden></div>
+          </div>
+          <div class="focus" id="deskFocus" hidden></div>
+          <ul class="nudges" id="deskNudges"></ul>
+        </div>
+      </div>
+      <!-- Stats & badges (gamification). Set CONFIG.gamification to true to show them. -->
+      <details class="game" id="gameBox" hidden>
+        <summary><span class="game-title">Stats &amp; badges</span><span class="game-sum" id="gameSum"></span></summary>
+        <div class="game-body">
+          <div class="stats" id="stats"></div>
+          <div class="badges" id="badges"></div>
+          <p class="note-sm">XP: 10 per commit, 50 per stage reached, 300 per launch.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-trail">
+    <div class="sec-head"><h2 id="h-trail">The trail</h2><span class="count" id="c-trail"></span></div>
+    <div class="card"><div class="trail-scroll"><div class="trail" id="trail"></div></div></div>
+  </section>
+
+  <section aria-labelledby="h-active">
+    <div class="sec-head"><h2 id="h-active">In development</h2><span class="count" id="c-active"></span></div>
+    <div class="list" id="active"><div class="empty">Loading projects…</div></div>
+  </section>
+
+  <section aria-labelledby="h-shipped">
+    <div class="sec-head"><h2 id="h-shipped">Shipped</h2><span class="count" id="c-shipped"></span></div>
+    <div id="shipped"><div class="empty">Loading…</div></div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+</main>
+<div class="toast" id="toast" hidden><span id="toastText"></span><button class="btn" type="button" id="toastUndo">Undo</button></div>
+
+<script>
+/* ================= data model ================= */
+const STAGES = CONFIG.stages;
+const LAST_STAGE = STAGES.length - 1;
+const GLYPHS = {
+  bulb:["...###...","..#####..",".#######.",".#######.",".#######.","..#####..","...###...","...###...","....#...."],
+  search:[".####....","#....#...","#....#...","#....#...","#....#...",".####....",".....##..","......##.",".......##"],
+  pencil:["......##.",".....####","....####.","...####..","..####...",".####....",".###.....","##.......","#........"],
+  box:["..#######",".#.....##","#######.#","#.....#.#","#.....#.#","#.....#.#","#.....##.","#######..","........."],
+  gear:["...###...",".#.###.#.",".#######.","####.####","###...###","####.####",".#######.",".#.###.#.","...###..."],
+  picture:["#########","#.......#","#.##....#","#.##..#.#","#....####","#..######","#########",".........","........."],
+  sparkle:[".........","....#....","....#....","...###...","#########","...###...","....#....","....#....","........."],
+  rocket:["....#....","...###...","...#.#...","...###...","...###...","..#####..",".##.#.##.",".#..#..#.","....#...."],
+  flag:["##.......","#######..","########.","#######..","##.......","#........","#........","#........","#........"],
+  cloud:[".........","...###...","..#####..",".#######.","#########","#########",".#######.",".........","........."],
+  laptop:[".........",".#######.",".#.....#.",".#.....#.",".#.....#.",".#######.","#########",".........","........."],
+  flame:["....#....","...##....","...###.#.","..####.#.",".#######.",".###.###.",".##...##.","..#...#..","...###..."],
+  ember:[".........",".........","....#....","...###...","..#####..","..##.##..","..#...#..","...###...","........."],
+  snow:["....#....",".#..#..#.","..#.#.#..","...###...","#########","...###...","..#.#.#..",".#..#..#.","....#...."],
+  star:["....#....","...###...","...###...","#########",".#######.","..#####..","..##.##..",".##...##.",".#.....#."],
+  bang:["...###...","...###...","...###...","...###...","...###...",".........","...###...","...###...","........."],
+  paw:[".#.....#.","###...###",".#..#..#.","...###...","..#####..",".#######.",".#######.","..##.##..","........."],
+  note:["...######","...#....#","...######","...#....#","...#....#",".###..###","####.####",".##...##.","........."]
+};
+function glyph(name, cls){
+  const g = GLYPHS[name]; if (!g) return "";
+  let r = "";
+  g.forEach((row, y) => {
+    let x = 0;
+    while (x < row.length) {
+      if (row[x] !== "#") { x++; continue; }
+      let w = 1; while (row[x + w] === "#") w++;
+      r += `<rect x="${x}" y="${y}" width="${w}" height="1"/>`; x += w;
+    }
+  });
+  return `<svg class="px-ico ${cls || ""}" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges" fill="currentColor">${r}</svg>`;
+}
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clamp = n => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+const stageIndex = p => STAGES.reduce((idx, st, i) => p >= st.min ? i : idx, 0);
+const stageOf = p => STAGES[stageIndex(p)];
+const stageMin = (id, fallback) => (STAGES.find(s => s.id === id) || {min: fallback}).min;
+
+/* ================= wording from CONFIG ================= */
+const M = Object.assign({name: "Pip", role: "Project manager", glyph: "star", size: 112, persona: ""}, CONFIG.mascot || {});
+const CHECK = `the ${CONFIG.checkTimeLabel || "morning"} check`;           // "the 5 AM check"
+const ROOT = CONFIG.projectsLabel || "PROJECTS";
+const SEP = CONFIG.pathSep || "/";
+const MACHINE = CONFIG.machineLabel || "this computer";
+const where = folder => ROOT + SEP + String(folder || "").replace(/[\\/]/g, SEP);
+const FOLDER_OK = "Created with a README and git repo at the next " + CHECK.replace(/^the /, "") + ".";
+const FOLDER_BAD = "Use letters, numbers, spaces, - or _.";
+
+let db = null, sample = null, projects = [], sync = null, coach = null;
+const openDetails = new Set();
+let confirming = null;          // {id, action}
+let startDraft = null;          // {id, name, folder}
+let retryDraft = {};            // id -> folder
+let ghDraft = {};               // id -> "private" | "public"
+
+function applyConfig(){
+  const title = String(CONFIG.title || "Idea → Launch");
+  document.title = title.replace(/\s*→\s*/g, " to ");
+  $("#brandTitle").innerHTML = esc(title).replace(/→/g, '<span class="to">→</span>');
+  $("#brandTagline").textContent = CONFIG.tagline || "";
+  $("#brandTagline").hidden = !CONFIG.tagline;
+  $("#nextText").textContent = `${M.name} checks in around ${CONFIG.checkTimeLabel || "the morning"}`;
+  $("#h-desk").textContent = `${M.name}'s desk`;
+  document.documentElement.style.setProperty("--mascot-px", (Number(M.size) || 112) + "px");
+  const img = $("#mascotImg");
+  if (M.img) { img.src = M.img; img.alt = M.alt || M.name; img.dataset.letter = String(M.name || "?").charAt(0).toUpperCase(); }
+  else img.replaceWith(Object.assign(document.createElement("span"), {className: "mono", textContent: String(M.name || "?").charAt(0).toUpperCase()}));
+  $("#mascotName").textContent = M.name;
+  $("#mascotRole").textContent = M.role || "";
+  $("#deskMsg").textContent = `${M.name} is reading the trail…`;
+  $("#askLabel").textContent = `Ask ${M.name}`;
+  $("#askInput").placeholder = `Ask ${M.name} about your projects`;
+  $("#gameBox").hidden = !CONFIG.gamification;
+  $("#foot").textContent = `${M.name}'s full check runs on ${MACHINE} around ${CONFIG.checkTimeLabel || "the same time each day"}: it reads each project's commits and notes, updates progress, and writes today's advice. The same check refreshes the git badges and sets up anything you started here the day before: the folder, the git repo and, if you chose one, the GitHub repo. It runs while ${MACHINE} is on and the Claude app is open; a missed check runs the next time the app starts.`;
+}
+
+/* ================= time helpers ================= */
+const dayKey = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+function fmtDate(iso, withYear){ const d = new Date(iso); if (isNaN(d)) return ""; return d.toLocaleDateString(undefined, {month:"short", day:"numeric", ...(withYear ? {year:"numeric"} : {})}); }
+function fmtTime(iso){ const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"}); }
+function ago(iso){
+  if (!iso) return null; const t = new Date(iso); if (isNaN(t)) return null;
+  const s = (Date.now() - t) / 1000;
+  if (s < 90) return "just now";
+  if (s < 3600) return Math.round(s / 60) + " min ago";
+  if (s < 86400) return Math.round(s / 3600) + "h ago";
+  const d = Math.round(s / 86400);
+  if (d === 1) return "yesterday";
+  if (d < 14) return d + " days ago";
+  return fmtDate(iso, true);
+}
+function dayLabel(iso){
+  const d = new Date(iso), now = new Date();
+  if (dayKey(d) === dayKey(now)) return "today";
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  if (dayKey(d) === dayKey(y)) return "yesterday";
+  return fmtDate(iso);
+}
+const daysBetween = (a, b) => { const d = Math.round((new Date(b) - new Date(a)) / 86400000); return isNaN(d) ? null : d; };
+
+/* ================= derived state ================= */
+function heat(p){
+  const a = p.activity || {}; let s = 0; const now = new Date();
+  for (let i = 0; i < 14; i++) { const d = new Date(now); d.setDate(now.getDate() - i); s += (a[dayKey(d)] || 0) * Math.pow(0.5, i / 3); }
+  return s;
+}
+function heatInfo(p){
+  if (p.setup && p.setup !== "done") return null;
+  const s = heat(p);
+  if (s >= 15) return {k:"blazing", label:"Blazing", glyph:"flame", tone:"hot"};
+  if (s >= 4) return {k:"warm", label:"Warm", glyph:"ember", tone:"hot"};
+  if (s >= 1) return {k:"cooling", label:"Cooling", glyph:"ember", tone:""};
+  return {k:"frozen", label:"Frozen", glyph:"snow", tone:"cold"};
+}
+function stripHTML(p){
+  const a = p.activity || {}, now = new Date(); let cells = "", total = 0;
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now); d.setDate(now.getDate() - i);
+    const n = a[dayKey(d)] || 0; total += n;
+    const cls = n === 0 ? "" : n <= 2 ? "h1" : n <= 7 ? "h2" : "h3";
+    cells += `<i class="${cls}" title="${esc(fmtDate(d.toISOString()))}: ${n} commit${n === 1 ? "" : "s"}"></i>`;
+  }
+  return `<span class="strip" role="img" aria-label="${total} commits in the last 14 days">${cells}</span>`;
+}
+function webUrl(u){
+  if (!u) return null; let m = String(u).match(/^git@([^:]+):(.+?)(\.git)?$/);
+  if (m) return `https://${m[1]}/${m[2]}`;
+  m = String(u).match(/^https?:\/\/(?:[^@\/]+@)?(.+?)(\.git)?$/);
+  return m ? "https://" + m[1] : null;
+}
+function gitInfo(p){
+  const g = p.git; if (!g) return null;
+  const when = g.at ? `As of ${dayLabel(g.at)} ${fmtTime(g.at)}` : "From the last sync";
+  if (!g.isRepo) return {label:"No git", glyph:"laptop", tone:"", title:`${when}: this folder isn't a git repo.`};
+  const url = webUrl(g.remoteUrl);
+  const detail = `${when}: ${g.branch || "?"}${g.upstream ? " → " + g.upstream : ""}, ${g.ahead || 0} commit${g.ahead === 1 ? "" : "s"} not pushed, ${g.dirty || 0} changed file${g.dirty === 1 ? "" : "s"}.`;
+  if (!g.remoteUrl) return {label: g.dirty ? "Local only · uncommitted" : "Local only", glyph:"laptop", tone:"warn", title: `${when}: no remote, so this repo only lives on ${MACHINE}.`};
+  if (g.ahead > 0 && g.dirty > 0) return {label:`${g.ahead} not pushed · uncommitted`, glyph:"cloud", tone:"warn", title:detail, url};
+  if (g.ahead > 0) return {label:`${g.ahead} not pushed`, glyph:"cloud", tone:"warn", title:detail, url};
+  if (g.dirty > 0) return {label:"Uncommitted changes", glyph:"pencil", tone:"warn", title:detail, url};
+  return {label:"Pushed", glyph:"cloud", tone:"good", title:detail, url};
+}
+function gamify(){
+  const active = projects.filter(p => p.status === "active"), shipped = projects.filter(p => p.status === "shipped");
+  const tracked = active.concat(shipped);
+  const commits = tracked.reduce((n, p) => n + (Number(p.commitsTotal) || 0), 0);
+  const milestones = tracked.reduce((n, p) => n + STAGES.filter(s => s.min > 0 && clamp(p.progress) >= s.min).length, 0);
+  const xp = commits * 10 + milestones * 50 + shipped.length * 300;
+  let L = 1; while (xpFor(L + 1) <= xp) L++;
+  const all = {};
+  tracked.forEach(p => { for (const [k, v] of Object.entries(p.activity || {})) all[k] = (all[k] || 0) + (Number(v) || 0); });
+  const d = new Date(); if (!all[dayKey(d)]) d.setDate(d.getDate() - 1);
+  let streak = 0; while (all[dayKey(d)]) { streak++; d.setDate(d.getDate() - 1); }
+  const week = active.reduce((n, p) => n + (Number(p.commits7d) || 0), 0);
+  const activeWeek = active.filter(p => (Number(p.commits7d) || 0) > 0).length;
+  const maxActive = active.reduce((m, p) => Math.max(m, clamp(p.progress)), 0);
+  const allClean = active.length > 0 && active.every(p => p.git && p.git.isRepo && p.git.remoteUrl && !p.git.ahead && !p.git.dirty);
+  return {xp, L, commits, streak, week, activeWeek, maxActive, allClean, shipped: shipped.length, milestones};
+}
+const LEVELS = ["Sketcher","Tinkerer","Builder","Maker","Crafter","Finisher","Shipper","Veteran","Master builder","Legend"];
+const xpFor = L => 150 * L * (L - 1) / 2;
+const BADGES = [
+  {glyph:"rocket", name:"First launch", how:"Ship a project", test:s => s.shipped >= 1},
+  {glyph:"flame", name:"Week streak", how:"Commit something 7 days in a row", test:s => s.streak >= 7},
+  {glyph:"star", name:"Century", how:"Reach 100 commits across your projects", test:s => s.commits >= 100},
+  {glyph:"gear", name:"Juggler", how:"Commit to 3 projects in one week", test:s => s.activeWeek >= 3},
+  {glyph:"sparkle", name:"Polisher", how:"Get a project to Polish & test", test:s => s.maxActive >= stageMin("polish", 80)},
+  {glyph:"cloud", name:"Clean slate", how:"Every active project pushed with nothing uncommitted", test:s => s.allClean},
+  {glyph:"flag", name:"Hat trick", how:"Ship three projects", test:s => s.shipped >= 3}
+];
+
+/* ================= small renderers ================= */
+function iconHTML(p, cls){
+  const letter = esc((p.name || "?").trim().charAt(0).toUpperCase());
+  if (p.icon) return `<div class="${cls || "icon"}"><img src="/_blob/${esc(p.icon)}" alt="" data-letter="${letter}" class="${p.pixelArt ? "px" : ""}"></div>`;
+  return `<div class="${cls || "icon"}" aria-hidden="true"><span class="mono">${letter}</span></div>`;
+}
+function barHTML(p, label){
+  const pct = clamp(p);
+  const size = pct > 0 ? (10000 / pct).toFixed(2) + "% 100%" : "100% 100%";
+  const ticks = STAGES.slice(1, -1).map(s => `<span class="tick" style="left:${s.min}%" title="${esc(s.name)} ${s.min}%"></span>`).join("");
+  return `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${esc(label)}: ${pct}% from idea to launch"><div class="fill" style="width:${pct}%;background-size:${size}"></div>${ticks}</div>`;
+}
+function sparkHTML(hist){
+  const pts = (hist || []).filter(h => h && h.d != null).slice(-30);
+  if (pts.length < 2) return `<p class="note-sm">${pts.length ? "Tracking since " + esc(fmtDate(pts[0].d + "T12:00:00")) + ". The trend line appears after the next check." : "No history yet."}</p>`;
+  const W = 280, H = 56, pad = 4;
+  const lo = Math.max(0, Math.min(...pts.map(h => h.p)) - 5), hi = Math.min(100, Math.max(...pts.map(h => h.p)) + 5);
+  const x = i => pad + i * (W - pad * 2) / (pts.length - 1);
+  const y = v => H - pad - (v - lo) / Math.max(1, hi - lo) * (H - pad * 2);
+  const line = pts.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.p).toFixed(1)}`).join(" ");
+  const area = `${line} L${x(pts.length - 1).toFixed(1)},${H - pad} L${x(0).toFixed(1)},${H - pad} Z`;
+  const last = pts[pts.length - 1], first = pts[0];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Progress from ${first.p}% to ${last.p}% over ${pts.length} checks">
+      <path d="${area}" style="fill:var(--accent-soft)"/>
+      <path d="${line}" style="fill:none;stroke:var(--g2)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+      <circle cx="${x(pts.length - 1)}" cy="${y(last.p)}" r="3.5" style="fill:var(--g4);stroke:var(--surface)" stroke-width="1.5"/>
+    </svg><p class="note-sm">${esc(fmtDate(first.d + "T12:00:00"))} ${first.p}% → ${esc(fmtDate(last.d + "T12:00:00"))} ${last.p}%</p>`;
+}
+const listHTML = (items, emptyText) => { const a = (items || []).filter(Boolean); return a.length ? `<ul>${a.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : `<p class="note-sm">${esc(emptyText)}</p>`; };
+function confirmHTML(id, action, question, label){
+  return `<span class="confirm">${esc(question)} <button class="btn primary" type="button" data-act="${action}-yes" data-id="${esc(id)}">${esc(label)}</button><button class="btn quiet" type="button" data-act="cancel">Cancel</button></span>`;
+}
+
+/* ================= sections ================= */
+function renderTrail(){
+  const active = projects.filter(p => p.status === "active");
+  const ideas = projects.filter(p => p.status === "idea").length;
+  const shipped = projects.filter(p => p.status === "shipped").length;
+  const n = STAGES.length;
+  const markers = active.map(p => {
+    const pct = clamp(p.progress), i = stageIndex(pct);
+    const next = STAGES[i + 1];
+    const frac = next ? (pct - STAGES[i].min) / (next.min - STAGES[i].min) : 0;
+    const pos = (i + 0.5 + frac) / n * 100;
+    const mc = STAGES[i].color;
+    const inner = p.icon ? `<img src="/_blob/${esc(p.icon)}" alt="" data-letter="${esc((p.name || "?").charAt(0).toUpperCase())}" class="${p.pixelArt ? "px" : ""}">` : `<span class="m-mono">${esc((p.name || "?").charAt(0).toUpperCase())}</span>`;
+    return `<a class="marker" href="#p-${esc(p.id)}" data-pos="${pos}" style="left:${pos}%;--mc:${mc}" title="${esc(p.name)} · ${pct}% · ${esc(STAGES[i].name)}"><span class="m-ico">${inner}</span><span class="stem"></span><span class="sr">${esc(p.name)}, ${pct}%</span></a>`;
+  }).join("");
+  const stops = STAGES.map((s, i) => {
+    let note = "";
+    if (i === 0 && ideas) note = `${ideas} idea${ideas === 1 ? "" : "s"}`;
+    if (i === LAST_STAGE && shipped) note = `${shipped} shipped`;
+    return `<li class="stop" style="--sc:${s.color}"><span class="stop-ico">${glyph(s.glyph)}</span><span class="stop-name">${esc(s.name)}</span><span class="stop-pct">${s.min}%</span><span class="stop-note">${esc(note)}</span></li>`;
+  }).join("");
+  $("#trail").style.setProperty("--n", n);
+  $("#trail").innerHTML = `<div class="trail-markers" id="markers">${markers}</div><div class="trail-line"></div><ol class="trail-stops">${stops}</ol>`;
+  $("#c-trail").textContent = active.length ? `${active.length} on the trail` : "";
+  stackMarkers();
+}
+function stackMarkers(){
+  const box = $("#markers"); if (!box) return;
+  const w = box.clientWidth || 660;
+  const ms = [...box.querySelectorAll(".marker")].map(el => ({el, x: parseFloat(el.dataset.pos) / 100 * w})).sort((a, b) => a.x - b.x);
+  const rows = [];
+  ms.forEach(m => {
+    let r = 0; while (rows[r] != null && m.x - rows[r] < 36) r++;
+    rows[r] = m.x; m.el.style.bottom = (r * 36) + "px";
+  });
+  box.style.height = (44 + Math.max(0, rows.length - 1) * 36) + "px";
+}
+
+function renderDesk(){
+  const s = gamify();
+  const active = projects.filter(p => p.status === "active");
+  // speech bubble
+  const msg = coach && coach.message ? coach.message
+    : active.length ? "I'll have a proper read on everything after the morning check. For now, the trail below shows where each project stands."
+    : "No projects on the trail yet. Jot one in the brain dump and press Start.";
+  const when = coach && coach.date ? `Written ${dayLabel(coach.date + "T12:00:00")}${coach.date === dayKey(new Date()) ? "" : " · a newer note comes with the next morning check"}` : "";
+  $("#deskMsg").innerHTML = `${esc(msg)}${when ? `<span class="when">${esc(when)}</span>` : ""}`;
+  // focus
+  const f = coach && coach.focus; const fp = f && projects.find(p => p.id === f.id);
+  const focusEl = $("#deskFocus");
+  if (f && f.title) {
+    focusEl.hidden = false;
+    focusEl.innerHTML = `${fp ? iconHTML(fp, "f-ico") : `<div class="f-ico">${glyph(M.glyph)}</div>`}<div style="min-width:0"><span class="tag">Today's focus${fp ? " · " + esc(fp.name) : ""}</span><strong>${esc(f.title)}</strong>${f.why ? `<p>${esc(f.why)}</p>` : ""}</div>`;
+  } else focusEl.hidden = true;
+  // nudges: the mascot's notes first, then facts the page can see for itself
+  const nudges = (coach && Array.isArray(coach.nudges) ? coach.nudges : []).slice(0, 4).map(n => ({kind: n.kind || "tip", text: n.text}));
+  active.forEach(p => {
+    if (p.setup === "queued" || p.setup === "error") return;
+    const g = p.git;
+    if (g && g.isRepo && !g.remoteUrl && p.githubStatus !== "queued") nudges.push({kind:"git", text:`${p.name} only lives on ${MACHINE}. Use "Create GitHub repo" on its card to back it up.`});
+    else if (g && g.ahead > 0) nudges.push({kind:"git", text:`${p.name} has ${g.ahead} commit${g.ahead === 1 ? "" : "s"} that aren't on GitHub yet.`});
+    else if (g && g.dirty > 0) nudges.push({kind:"git", text:`${p.name} has ${g.dirty} uncommitted change${g.dirty === 1 ? "" : "s"}. Commit before you switch projects.`});
+    const last = p.lastCommitAt ? daysBetween(p.lastCommitAt, new Date()) : null;
+    if (last != null && last >= 7 && !p.parked) nudges.push({kind:"attention", text:`${p.name} hasn't moved in ${last} days. Plan one small step or park it on purpose.`});
+    const pct = clamp(p.progress), nx = STAGES[stageIndex(pct) + 1];
+    if (nx && nx.min < 100 && nx.min - pct <= 3) nudges.push({kind:"momentum", text:`${p.name} is ${nx.min - pct} point${nx.min - pct === 1 ? "" : "s"} from ${nx.name}.`});
+  });
+  const icoFor = {attention:"bang", momentum:"flame", tip:M.glyph, git:"cloud", good:"star"};
+  $("#deskNudges").innerHTML = nudges.slice(0, 6).map(n => `<li class="n-${esc(n.kind)}"><span class="n-ico">${glyph(icoFor[n.kind] || M.glyph)}</span><span>${esc(n.text)}</span></li>`).join("");
+  if (!CONFIG.gamification) return;
+  // stats
+  const lo = xpFor(s.L), hi = xpFor(s.L + 1), filled = Math.floor((s.xp - lo) / (hi - lo) * 10);
+  const title = LEVELS[Math.min(s.L, LEVELS.length) - 1];
+  $("#stats").innerHTML = `
+    <div class="stat"><div class="k">${glyph("star")} Level</div><div class="v">${s.L}</div><div class="s">${esc(title)} · ${s.xp.toLocaleString()} / ${hi.toLocaleString()} XP</div>
+      <div class="xpbar" role="img" aria-label="${Math.round((s.xp - lo) / (hi - lo) * 100)}% to level ${s.L + 1}">${Array.from({length:10}, (_, i) => `<i class="${i < filled ? "on" : ""}"></i>`).join("")}</div></div>
+    <div class="stat"><div class="k">${glyph("flame")} Streak</div><div class="v">${s.streak}</div><div class="s">${s.streak === 1 ? "day" : "days"} in a row with a commit</div></div>
+    <div class="stat"><div class="k">${glyph("gear")} This week</div><div class="v">${s.week}</div><div class="s">commits across ${s.activeWeek} project${s.activeWeek === 1 ? "" : "s"}</div></div>
+    <div class="stat"><div class="k">${glyph("rocket")} Shipped</div><div class="v">${s.shipped}</div><div class="s">${s.milestones} stage milestones reached</div></div>`;
+  $("#badges").innerHTML = BADGES.map(b => { const on = b.test(s); return `<span class="badge ${on ? "on" : ""}" title="${esc(on ? "Earned: " + b.how : "To earn: " + b.how)}"><span class="b-ico">${glyph(b.glyph)}</span>${esc(b.name)}</span>`; }).join("");
+  const earned = BADGES.filter(b => b.test(s)).length;
+  $("#gameSum").textContent = `Level ${s.L} · ${s.streak}-day streak · ${earned}/${BADGES.length} badges`;
+}
+
+function activeCard(p){
+  const pct = clamp(p.progress), st = stageOf(pct);
+  const h = heatInfo(p), g = gitInfo(p);
+  const facts = [];
+  if (p.activity && Object.keys(p.activity).length) facts.push(stripHTML(p));
+  if (p.lastCommitAt) facts.push(`<span>Last commit ${esc(ago(p.lastCommitAt))}</span>`);
+  if (p.commits7d != null) facts.push(`<span>${p.commits7d} commit${p.commits7d === 1 ? "" : "s"} this week</span>`);
+  if (p.startedAt) { const d = daysBetween(p.startedAt, new Date()); if (d != null && d >= 0) facts.push(`<span>Day ${d + 1}</span>`); }
+  const chips = [`<span class="pill">${glyph(st.glyph)}${esc(st.name)}</span>`];
+  if (h) chips.push(`<span class="pill ${h.tone}" title="Momentum from the last 14 days of commits">${glyph(h.glyph)}${esc(h.label)}</span>`);
+  if (g) chips.push(g.url ? `<a class="pill ${g.tone}" href="${esc(g.url)}" target="_blank" rel="noopener" title="${esc(g.title)}">${glyph(g.glyph)}${esc(g.label)}</a>` : `<span class="pill ${g.tone}" title="${esc(g.title)}">${glyph(g.glyph)}${esc(g.label)}</span>`);
+  if (p.blockers) chips.push(`<span class="pill warn">${glyph("bang")}Blocked</span>`);
+  if (p.parked) chips.push(`<span class="pill cold">${glyph("snow")}Parked</span>`);
+  let setup = "";
+  const ghWord = p.github === "public" ? "public" : "private";
+  if (p.setup === "queued") setup = `<div class="setup queued">${glyph("box")} Setting up ${esc(where(p.folderRequested))} with a git repo${p.github ? ` and a ${ghWord} GitHub repo` : ""}. ${esc(CHECK.charAt(0).toUpperCase() + CHECK.slice(1))} creates it.</div>`;
+  else if (p.setup === "error") {
+    const v = retryDraft[p.id] ?? p.folderRequested ?? "";
+    setup = `<div class="setup">${glyph("bang")} <span>${esc(p.setupError || "Setup failed.")}</span>
+      <label class="sr" for="retry-${esc(p.id)}">Folder name</label><input id="retry-${esc(p.id)}" data-retry="${esc(p.id)}" value="${esc(v)}" maxlength="60">
+      <button class="btn" type="button" data-act="retry" data-id="${esc(p.id)}">Try this name</button></div>`;
+  } else if (p.githubStatus === "queued") {
+    setup = `<div class="setup queued">${glyph("cloud")} Creating a ${ghWord} GitHub repo and pushing. ${esc(CHECK.charAt(0).toUpperCase() + CHECK.slice(1))} does it.</div>`;
+  } else if (p.githubStatus === "error") {
+    setup = `<div class="setup">${glyph("bang")} <span>GitHub repo not created: ${esc(p.githubError || "unknown error")}</span>
+      <button class="btn" type="button" data-act="gh-retry" data-id="${esc(p.id)}">Try again</button></div>`;
+  } else if (p.git && p.git.isRepo && !p.git.remoteUrl && p.folder) {
+    const v = ghDraft[p.id] || "private";
+    setup = `<div class="setup queued">${glyph("laptop")} <span>This repo only lives on ${esc(MACHINE)}.</span>
+      <label class="sr" for="gh-${esc(p.id)}">Visibility</label><select id="gh-${esc(p.id)}" data-gh="${esc(p.id)}" class="gh-select"><option value="private" ${v === "private" ? "selected" : ""}>Private</option><option value="public" ${v === "public" ? "selected" : ""}>Public</option></select>
+      <button class="btn" type="button" data-act="gh-create" data-id="${esc(p.id)}">Create GitHub repo</button></div>`;
+  }
+  const isConfirm = confirming && confirming.id === p.id && confirming.action === "ship";
+  return `<article class="card proj" id="p-${esc(p.id)}">
+    <div class="proj-head">
+      ${iconHTML(p)}
+      <div style="min-width:0">
+        <div class="title-row"><h3>${esc(p.name)}</h3>${chips.join("")}</div>
+        ${p.kind ? `<p class="kind">${esc(p.kind)}</p>` : ""}
+        <p class="summary">${esc(p.summary || "Waiting for the next morning check.")}</p>
+      </div>
+      <div class="pct">${pct}<small>%</small></div>
+    </div>
+    ${setup}
+    <div>${barHTML(pct, p.name)}<div class="bar-legend"><span>${esc(STAGES[0].name)}</span><span>Launch</span></div></div>
+    ${facts.length ? `<div class="facts">${facts.join("")}</div>` : ""}
+    <details class="more" data-id="${esc(p.id)}" ${openDetails.has(p.id) ? "open" : ""}>
+      <summary>Details</summary>
+      <div class="more-body">
+        ${p.blockers ? `<div class="blocker"><strong>Blocked:</strong> ${esc(p.blockers)}</div>` : ""}
+        <div><h4>Since the last check</h4>${listHTML(p.recent, "No changes since the last check.")}</div>
+        <div><h4>Next up</h4>${listHTML(p.next, "No next steps recorded.")}</div>
+        <div><h4>Progress over time</h4>${sparkHTML(p.history)}</div>
+        <div class="actions">
+          <span class="where">${p.folder ? esc(where(p.folder)) : "No folder linked yet"}${p.commitsTotal ? " · " + p.commitsTotal + " commits" : ""}${webUrl(p.git && p.git.remoteUrl) ? ` · <a href="${esc(webUrl(p.git.remoteUrl))}" target="_blank" rel="noopener">GitHub</a>` : ""}</span>
+          ${isConfirm ? confirmHTML(p.id, "ship", `Move ${p.name} to Shipped?`, "Mark shipped") : `<button class="btn" type="button" data-act="ship" data-id="${esc(p.id)}">Mark as shipped</button>`}
+        </div>
+      </div>
+    </details>
+  </article>`;
+}
+
+function suggestFolder(name){ return String(name || "").toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "NEW-PROJECT"; }
+function noteTitle(text){ const first = String(text || "").split(/\r?\n/).find(l => l.trim()) || "New project"; return first.trim().replace(/[.!?:;,]+$/, "").slice(0, 40); }
+function noteCard(p){
+  const text = p.note || p.pitch || p.name || "";
+  const drafting = startDraft && startDraft.id === p.id;
+  const row = `<div class="note-row"><p class="note-text">${esc(text)}</p><span class="when">${esc(fmtDate(p.createdAt) || "")}</span>
+    ${drafting ? "" : `<span class="note-actions"><button class="btn quiet" type="button" data-act="forget" data-id="${esc(p.id)}">Delete</button><button class="btn" type="button" data-act="start" data-id="${esc(p.id)}">Start</button></span>`}</div>`;
+  let foot = "";
+  if (drafting) {
+    const okName = /^[A-Za-z0-9][A-Za-z0-9 _-]{0,59}$/.test(startDraft.folder);
+    foot = `<div class="start-panel">
+      <div class="field"><label for="sn-${esc(p.id)}">Project name</label><input id="sn-${esc(p.id)}" data-draft="name" value="${esc(startDraft.name)}" maxlength="60"></div>
+      <div class="field"><label for="sf-${esc(p.id)}">Folder in ${esc(ROOT)}</label><input id="sf-${esc(p.id)}" data-draft="folder" value="${esc(startDraft.folder)}" maxlength="60"><span class="hint" id="sh-${esc(p.id)}">${esc(okName ? FOLDER_OK : FOLDER_BAD)}</span></div>
+      <div class="field"><label for="sg-${esc(p.id)}">GitHub</label><select id="sg-${esc(p.id)}" data-draft="github">
+        <option value="private" ${startDraft.github === "private" ? "selected" : ""}>Create a private repo and push</option>
+        <option value="public" ${startDraft.github === "public" ? "selected" : ""}>Create a public repo and push</option>
+        <option value="" ${!startDraft.github ? "selected" : ""}>Keep it on ${esc(MACHINE)} for now</option></select></div>
+      <div class="confirm"><button class="btn primary" type="button" data-act="start-yes" data-id="${esc(p.id)}" ${okName && startDraft.name.trim() ? "" : "disabled"}>Start project</button><button class="btn quiet" type="button" data-act="cancel">Cancel</button></div>
+    </div>`;
+  }
+  return `<li class="note">${row}${foot}</li>`;
+}
+
+function shipRow(p){
+  const took = p.startedAt && p.shippedAt ? daysBetween(p.startedAt, p.shippedAt) : null;
+  const links = (p.links || []).filter(l => l && /^https?:\/\//.test(l.url)).map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || l.url)}</a>`).join(" · ");
+  return `<div class="ship">${iconHTML(p)}
+    <div style="min-width:0"><h3>${esc(p.name)}${p.version ? ` <span class="pill">v${esc(p.version)}</span>` : ""}</h3>
+      <p class="sub">${[p.kind ? esc(p.kind) : "", links].filter(Boolean).join(" · ")}</p>
+      ${p.summary ? `<p class="desc">${esc(p.summary)}</p>` : ""}</div>
+    <div class="right"><span class="pill good">${glyph("flag")}Shipped ${esc(fmtDate(p.shippedAt, true) || "")}</span>${took != null ? `<span>Idea to launch in ${took} day${took === 1 ? "" : "s"}</span>` : ""}</div></div>`;
+}
+
+function render(){
+  const active = projects.filter(p => p.status === "active").sort((a, b) => clamp(b.progress) - clamp(a.progress) || String(a.name).localeCompare(b.name));
+  const ideas = projects.filter(p => p.status === "idea").sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const shipped = projects.filter(p => p.status === "shipped").sort((a, b) => String(b.shippedAt || "").localeCompare(String(a.shippedAt || "")));
+  const focused = document.activeElement && document.activeElement.id;
+
+  renderTrail();
+  renderDesk();
+  $("#active").innerHTML = active.length ? active.map(activeCard).join("") : `<div class="empty">Nothing in development yet. Start an idea from the brain dump, or the morning check adds new folders it finds in ${esc(ROOT)}.</div>`;
+  $("#dump").innerHTML = ideas.map(noteCard).join("");
+  $("#shipped").innerHTML = shipped.length ? `<div class="card ledger">${shipped.map(shipRow).join("")}</div>` : `<div class="empty">Shipped projects are kept here for reference.</div>`;
+
+  $("#c-active").textContent = active.length ? `${active.length} project${active.length === 1 ? "" : "s"}` : "";
+  $("#c-dump").textContent = ideas.length ? `${ideas.length} saved idea${ideas.length === 1 ? "" : "s"}` : "Saved ideas appear here";
+  $("#c-shipped").textContent = shipped.length ? `${shipped.length} launched` : "";
+  if (focused) { const el = document.getElementById(focused); if (el && el !== document.activeElement) { el.focus(); if (el.setSelectionRange && el.value != null) { const n = el.value.length; el.setSelectionRange(n, n); } } }
+}
+
+function renderSync(){
+  const dot = $("#syncDot"), txt = $("#syncText");
+  const staleMs = (Number(CONFIG.staleHours) || 26) * 3600000;
+  if (!sync || !sync.lastRun) { dot.className = "dot"; txt.textContent = "Waiting for the first check"; }
+  else {
+    const age = Date.now() - new Date(sync.lastRun);
+    dot.className = "dot " + (age < staleMs ? "fresh" : "stale");
+    txt.textContent = `Full check ${dayLabel(sync.lastRun)} ${fmtTime(sync.lastRun)}` + (age >= staleMs ? " · a check was missed" : "");
+  }
+  $("#quickText").textContent = sync && sync.lastQuick ? `Git synced ${ago(sync.lastQuick)}` : "";
+}
+
+/* ================= actions ================= */
+function showNotice(msg){ const n = $("#notice"); n.textContent = msg; n.hidden = !msg; }
+let toastTimer = null, undoDoc = null;
+function toast(text, undo){
+  $("#toastText").textContent = text; undoDoc = undo || null; $("#toastUndo").hidden = !undo;
+  $("#toast").hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $("#toast").hidden = true; undoDoc = null; }, 7000);
+}
+$("#toastUndo").addEventListener("click", async () => {
+  if (!undoDoc || !db) return; const {id, data} = undoDoc; undoDoc = null; $("#toast").hidden = true;
+  try { await db.collection("projects").doc(id).set(data); } catch (e) { showNotice("Couldn't restore that note. It may need re-typing."); }
+});
+
+document.addEventListener("error", e => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.dataset.letter) return;
+  const s = document.createElement("span"); s.className = img.closest(".marker") ? "m-mono" : "mono"; s.textContent = img.dataset.letter;
+  img.replaceWith(s);
+}, true);
+document.addEventListener("toggle", e => {
+  const d = e.target; if (!(d instanceof HTMLDetailsElement) || !d.dataset.id) return;
+  d.open ? openDetails.add(d.dataset.id) : openDetails.delete(d.dataset.id);
+}, true);
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.draft && startDraft) {
+    startDraft[t.dataset.draft] = t.value;
+    const ok = /^[A-Za-z0-9][A-Za-z0-9 _-]{0,59}$/.test(startDraft.folder);
+    const hint = document.getElementById("sh-" + startDraft.id);
+    if (hint) hint.textContent = ok ? FOLDER_OK : FOLDER_BAD;
+    const btn = document.querySelector(`[data-act="start-yes"][data-id="${CSS.escape(startDraft.id)}"]`);
+    if (btn) btn.disabled = !(ok && startDraft.name.trim());
+  }
+  if (t.dataset && t.dataset.retry) retryDraft[t.dataset.retry] = t.value;
+  if (t.dataset && t.dataset.gh) ghDraft[t.dataset.gh] = t.value;
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.draft === "github" && startDraft) startDraft.github = t.value;
+  if (t.dataset && t.dataset.gh) ghDraft[t.dataset.gh] = t.value;
+});
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  const p = projects.find(x => x.id === id);
+  if (act === "cancel") { confirming = null; startDraft = null; render(); return; }
+  if (act === "ship") { confirming = {id, action: act}; render(); return; }
+  if (act === "start" && p) { const name = noteTitle(p.note || p.name); startDraft = {id, name, folder: suggestFolder(name), github: "private"}; render(); const el = document.getElementById("sn-" + id); if (el) el.focus(); return; }
+  if (!db || !p) return;
+  const ref = db.collection("projects").doc(id);
+  const now = new Date().toISOString(), today = dayKey(new Date());
+  b.disabled = true;
+  try {
+    if (act === "ship-yes") {
+      const hist = (p.history || []).filter(h => h.d !== today).concat([{d: today, p: 100}]).slice(-60);
+      await ref.update({status: "shipped", progress: 100, shippedAt: now, history: hist});
+      confirming = null;
+    } else if (act === "forget") {
+      const data = {...p}; delete data.id;
+      await ref.delete();
+      toast("Idea deleted.", {id, data});
+    } else if (act === "start-yes" && startDraft && startDraft.id === id) {
+      const name = startDraft.name.trim(), folder = startDraft.folder.trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{0,59}$/.test(folder) || !name) { b.disabled = false; return; }
+      if (projects.some(x => x.id !== id && (String(x.folder || "").toLowerCase() === folder.toLowerCase() || String(x.folderRequested || "").toLowerCase() === folder.toLowerCase()))) {
+        const hint = document.getElementById("sh-" + id); if (hint) hint.textContent = "Another project already uses that folder."; b.disabled = false; return;
+      }
+      const gh = startDraft.github === "public" || startDraft.github === "private" ? startDraft.github : null;
+      await ref.update({status: "active", name, folderRequested: folder, setup: "queued", progress: 0, startedAt: now,
+        history: [{d: today, p: 0}], kind: p.kind || "New project", github: gh, githubStatus: gh ? "queued" : null,
+        summary: `Just started from the brain dump. The folder and git repo${gh ? ` (plus a ${gh} GitHub repo)` : ""} are created at the next ${CHECK.replace(/^the /, "")}.`});
+      startDraft = null;
+      toast(`${name} is on the trail. Folder coming at ${CHECK}.`);
+    } else if (act === "gh-create") {
+      const vis = ghDraft[id] === "public" ? "public" : "private";
+      await ref.update({github: vis, githubStatus: "queued", githubError: null});
+      delete ghDraft[id];
+      toast(`${p.name}: ${vis} GitHub repo queued for ${CHECK}.`);
+    } else if (act === "gh-retry") {
+      await ref.update({githubStatus: "queued", githubError: null});
+    } else if (act === "retry") {
+      const folder = String(retryDraft[id] ?? "").trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{0,59}$/.test(folder)) { showNotice("Folder names can use letters, numbers, spaces, - and _."); b.disabled = false; return; }
+      await ref.update({setup: "queued", folderRequested: folder, setupError: null});
+      delete retryDraft[id];
+    }
+    showNotice("");
+  } catch (err) {
+    showNotice("That change didn't save" + (err && err.code ? ` (${err.code})` : "") + ". Reload the page and try again.");
+    b.disabled = false;
+  }
+});
+
+/* brain dump */
+const dumpText = $("#dumpText");
+dumpText.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#dumpForm").requestSubmit(); } });
+$("#dumpForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const text = dumpText.value.trim(); if (!text) return;
+  if (!db) { showNotice("Open this page on claude.ai to save ideas."); return; }
+  const btn = $("#dumpBtn"); btn.disabled = true;
+  try {
+    await db.collection("projects").add({status: "idea", note: text, name: noteTitle(text), progress: 0, createdAt: new Date().toISOString(), source: "brain-dump"});
+    dumpText.value = "";
+  } catch (err) {
+    showNotice(err && err.code === "quota_exceeded" ? "The tracker is full. Forget a few old notes and try again." : "Couldn't save that note. Check your connection and try again.");
+  } finally { btn.disabled = false; dumpText.focus(); }
+});
+
+/* ================= Ask the mascot (sample capability: runs on the viewer's Claude usage) ================= */
+let askCtl = null;
+function deskContext(){
+  const s = gamify();
+  const rows = projects.filter(p => p.status === "active").map(p => ({
+    name: p.name, kind: p.kind, progress: clamp(p.progress), stage: stageOf(clamp(p.progress)).name,
+    summary: p.summary, next: p.next, blockers: p.blockers || null, recent: p.recent, parked: !!p.parked,
+    lastCommit: p.lastCommitAt ? ago(p.lastCommitAt) : null, commitsThisWeek: p.commits7d ?? null,
+    momentum: heatInfo(p)?.label || null, git: gitInfo(p)?.label || null, setup: p.setup || null
+  }));
+  return JSON.stringify({
+    today: new Date().toDateString(),
+    stages: STAGES.map(st => `${st.name} ${st.min}%`).join(" · "),
+    active: rows,
+    shipped: projects.filter(p => p.status === "shipped").map(p => p.name),
+    brainDump: projects.filter(p => p.status === "idea").slice(0, 12).map(p => String(p.note || p.name || "").slice(0, 160)),
+    ...(CONFIG.gamification ? {streakDays: s.streak, level: s.L} : {}),
+    todaysFocus: coach && coach.focus ? coach.focus.title : null
+  });
+}
+async function ask(q, cacheable){
+  if (!sample || !q) return;
+  if (askCtl) askCtl.abort();
+  const ctl = askCtl = new AbortController();
+  const out = $("#askAnswer"); out.hidden = false; out.textContent = `${M.name} is thinking…`;
+  document.querySelectorAll(".ask-quick .chip-btn, #askBtn").forEach(x => x.disabled = true); $("#askStop").hidden = false;
+  const prompt = `${M.persona || `You are ${M.name}, the developer's calm, practical project manager.`}
+The developer is a solo creator who juggles several projects${CONFIG.about ? `, ${CONFIG.about},` : ""} and wants help deciding what to do next so no project stalls.
+Answer like a good PM: concrete next actions, honest about scope, no hype, no emoji, plain text only (no markdown headings or bold). Keep it under 150 words unless asked for more. Use short paragraphs, or up to 5 lines starting with "- ".
+
+Current project data (JSON):
+${deskContext()}
+
+Question: ${q}`;
+  try {
+    const res = await sample(prompt, {signal: ctl.signal, onText: ({text}) => { out.textContent = text; }, ...(cacheable ? {} : {cache: false})});
+    if (res.truncated) out.textContent += "\n\n(Cut short. Ask something narrower.)";
+  } catch (err) {
+    const code = err && err.code;
+    if (code === "cancelled") { out.textContent = err.text || ""; out.hidden = !err.text; }
+    else if (["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(code)) { $("#askBox").hidden = true; }
+    else if (code === "rate_limited") out.textContent = (err.text ? err.text + "\n\n" : "") + `${M.name} needs a breather: you've hit a usage limit. Try again later.`;
+    else if (code === "refused") out.textContent = `${M.name} can't help with that one. Try asking about your projects.`;
+    else out.textContent = (err && err.text ? err.text + "\n\n" : "") + `${M.name} lost the thread. Try again.`;
+  } finally {
+    if (askCtl === ctl) { askCtl = null; document.querySelectorAll(".ask-quick .chip-btn, #askBtn").forEach(x => x.disabled = false); $("#askStop").hidden = true; }
+  }
+}
+$("#askForm").addEventListener("submit", e => { e.preventDefault(); const q = $("#askInput").value.trim(); if (q) ask(q, false); });
+$("#askStop").addEventListener("click", () => askCtl && askCtl.abort());
+document.querySelectorAll(".ask-quick .chip-btn").forEach(b => b.addEventListener("click", () => ask(b.dataset.q, true)));
+
+/* ================= lo-fi radio: plays on its own, the button pauses it. No tracks, no button. ================= */
+(function radio(){
+  const TRACKS = (CONFIG.tracks || []).filter(Boolean);
+  if (!TRACKS.length) { $("#radio").hidden = true; return; }
+  const R = Object.assign({volume: 0.5, crossfadeMs: 4500, leadSeconds: 6}, CONFIG.radio || {});
+  const VOL = R.volume;
+  const btn = $("#radioBtn"), label = $("#radioLabel");
+  const order = TRACKS.map((_, i) => i).sort(() => Math.random() - 0.5);
+  let pos = 0, cur = 0, playing = false, want = true, crossing = false, starting = false;
+  const players = [new Audio(), new Audio()];
+  players.forEach(a => { a.preload = "auto"; });
+  const track = (k) => TRACKS[order[(pos + (k || 0)) % order.length]];
+  players[0].src = track();
+  // iPhones ignore element volume; there songs follow each other instead of crossfading.
+  let canFade = true;
+  try { players[1].volume = 0.5; canFade = Math.abs(players[1].volume - 0.5) < 0.01; players[1].volume = 1; } catch (e) { canFade = false; }
+  function fade(a, to, ms, done){
+    if (!canFade) { done && done(); return; }
+    const from = a.volume, t0 = Date.now();
+    const id = setInterval(() => {
+      const k = Math.min(1, (Date.now() - t0) / ms);
+      a.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+      if (k >= 1) { clearInterval(id); done && done(); }
+    }, 50);
+  }
+  function setUI(){
+    btn.setAttribute("aria-pressed", want ? "true" : "false");
+    btn.setAttribute("aria-label", want ? "Pause music" : "Play music");
+    label.textContent = want ? "Pause" : "Play";
+  }
+  // Let the second player start later without a tap (needed on phones).
+  function unlockSpare(){
+    const b = players[1 - cur]; if (b.dataset.ok) return;
+    b.muted = true; if (!b.src) b.src = track(1);
+    b.play().then(() => { b.pause(); b.currentTime = 0; b.muted = false; b.dataset.ok = "1"; }, () => { b.muted = false; });
+  }
+  function start(){
+    if (starting || playing) return;
+    starting = true;
+    const a = players[cur];
+    if (canFade) a.volume = 0;
+    a.play().then(() => {
+      starting = false;
+      if (!want) { a.pause(); return; }
+      playing = true; setUI(); fade(a, VOL, 1500); unlockSpare(); dropGestures();
+    }, () => { starting = false; });
+  }
+  function stop(){
+    want = false; playing = false; crossing = false; setUI();
+    players.forEach(p => fade(p, 0, 500, () => p.pause()));
+    if (!canFade) players.forEach(p => p.pause());
+  }
+  function advance(ms){
+    if (crossing) return;
+    crossing = true;
+    const prev = cur; cur = 1 - cur; pos++;
+    const b = players[cur]; b.src = track(); b.currentTime = 0;
+    if (canFade) b.volume = 0;
+    b.play().then(() => {
+      fade(b, VOL, ms);
+      fade(players[prev], 0, ms, () => { players[prev].pause(); crossing = false; });
+      if (!canFade) { players[prev].pause(); crossing = false; }
+    }).catch(() => { crossing = false; });
+  }
+  btn.addEventListener("click", () => { if (playing) stop(); else { want = true; setUI(); start(); } });
+  setInterval(() => {
+    if (!playing || crossing || !canFade) return;
+    const a = players[cur];
+    if (a.duration && a.currentTime > a.duration - R.leadSeconds) advance(R.crossfadeMs);
+  }, 250);
+  players.forEach(a => a.addEventListener("ended", () => { if (playing && !crossing && a === players[cur]) advance(canFade ? 400 : 0); }));
+  // Browsers that block sound until the first tap get it on the first tap anywhere on the page.
+  const EVENTS = ["pointerdown", "pointerup", "click", "keydown", "touchend"];
+  const gesture = e => {
+    if (e.target && e.target.closest && e.target.closest("#radioBtn")) return;   // the button handles itself
+    if (want && !playing) start();
+  };
+  function dropGestures(){ EVENTS.forEach(t => document.removeEventListener(t, gesture, true)); }
+  EVENTS.forEach(t => document.addEventListener(t, gesture, true));
+  setUI();
+  start();
+})();
+
+/* ================= the animated header scene =================
+   Layers drawn over CONFIG.scene.img: twinkling stars, chimney smoke, flame tongues, window glow and dim
+   layers computed from the image's own warm pixels, light spill and halo, roof powder, and snow.
+   Leave out of the artwork anything this animates (smoke, falling snow). No scene: a plain gradient header. */
+(async function scene(){
+  const hero = $("#hero"), cv = $("#scene");
+  let S = CONFIG.scene;
+  if (typeof S === "string") { try { S = await (await fetch(S)).json(); } catch (e) { S = null; } }
+  const plain = () => { hero.classList.add("static"); cv.remove(); $("#heroAlt").remove(); };
+  if (!S || !S.img) { plain(); return; }
+  $("#heroAlt").textContent = S.alt || "";
+  if (S.focus) cv.style.objectPosition = S.focus;
+  const ctx = cv.getContext("2d");
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const K = Math.max(0, S.fireIntensity ?? 1);                        // flicker depth
+  const WIND = S.wind ?? 1, FLIP = S.flickerSeconds || 0.09, PUFF = S.smokeEvery || 0.15, FRAME_MS = 1000 / (S.fps || 33);
+  const WARM = Object.assign({rMin: 160, rOverB: 60, gOverB: 5}, S.warmPixels || {});
+  const CHIM = S.chimney, FIRE = S.fire, FR = S.fireRect, ROOF = S.roofLine, SKY = S.starRegion;
+  const img = new Image();
+  let W = 640, H = 272;
+  let glow, dim, fire, spill, halo, stars = [], flakes = [], smoke = [], tongues = [], drift = [];
+  let running = false, visible = true, last = 0, lastDraw = 0, smokeAcc = 0, driftAcc = 0;
+  let fl = 0.6, flT = 0.6, ff = 0.6, ffT = 0.6, flipT = 0, popT = 0, pop = 0;
+  const lim = (v, a, b) => Math.max(a, Math.min(b, v));
+  function layer(){ const c = document.createElement("canvas"); c.width = W; c.height = H; return c; }
+  function radial(x, y, r, sy, color){
+    const c = layer(), g = c.getContext("2d");
+    g.save(); g.translate(x, y); g.scale(1, sy);
+    const grd = g.createRadialGradient(0, 0, 2, 0, 0, r); grd.addColorStop(0, color); grd.addColorStop(1, "rgba(255,150,60,0)");
+    g.fillStyle = grd; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill(); g.restore();
+    return c;
+  }
+  function flake(init){
+    const r = Math.random(), size = r < 0.16 ? 3 : r < 0.54 ? 2 : 1;
+    return {x: Math.random() * W, y: init ? Math.random() * H : -3 - Math.random() * 40, s: size,
+      vy: size === 3 ? 30 + Math.random() * 14 : size === 2 ? 18 + Math.random() * 12 : 8 + Math.random() * 8,
+      ph: Math.random() * 6.28, sway: 2 + Math.random() * 5};
+  }
+  img.onerror = plain;
+  img.onload = () => {
+    W = img.naturalWidth || W; H = img.naturalHeight || H; cv.width = W; cv.height = H;
+    const base = layer(), b = base.getContext("2d"); b.drawImage(img, 0, 0);
+    let src;
+    try { src = b.getImageData(0, 0, W, H); } catch (e) { src = null; }
+    if (src && S.glow !== false) {
+      glow = layer(); dim = layer(); if (FR) fire = layer();
+      const gd = new ImageData(W, H), dd = new ImageData(W, H), fd = new ImageData(W, H), s = src.data;
+      for (let i = 0; i < s.length; i += 4) {
+        const r = s[i], g = s[i + 1], bl = s[i + 2], x = (i >> 2) % W, y = ((i >> 2) / W) | 0;
+        if (r > WARM.rMin && r > bl + WARM.rOverB && g > bl + WARM.gOverB) {
+          gd.data[i] = r; gd.data[i + 1] = g * 0.72; gd.data[i + 2] = bl * 0.3; gd.data[i + 3] = 255;
+          dd.data[i] = r * 0.5; dd.data[i + 1] = g * 0.36; dd.data[i + 2] = bl * 0.4; dd.data[i + 3] = 255;
+          if (FR && x >= FR.x0 && x <= FR.x1 && y >= FR.y0 && y <= FR.y1) { fd.data[i] = 255; fd.data[i + 1] = Math.min(255, g + 40); fd.data[i + 2] = 50; fd.data[i + 3] = 255; }
+        }
+        if (SKY && y < SKY.y1 && x < SKY.x1 && x > SKY.x0 && y > SKY.y0) {
+          const lum = (r + g + bl) / 3;
+          if (lum > 120) {
+            const n = ((s[i - 4] + s[i + 4] + s[i - W * 4] + s[i + W * 4]) / 4);
+            if (n < 90) stars.push({x, y, ph: Math.random() * 6.28, sp: 0.8 + Math.random() * 1.6});
+          }
+        }
+      }
+      glow.getContext("2d").putImageData(gd, 0, 0);
+      dim.getContext("2d").putImageData(dd, 0, 0);
+      if (fire) fire.getContext("2d").putImageData(fd, 0, 0);
+    }
+    if (S.spill) spill = radial(S.spill.x, S.spill.y, S.spill.r, S.spill.squash ?? 0.26, "rgba(255,165,75,0.8)");
+    if (S.halo) halo = radial(S.halo.x, S.halo.y, S.halo.r, 1, "rgba(255,150,55,0.95)");
+    if (FIRE) for (let x = FIRE.x0; x <= FIRE.x1; x++) tongues.push({x, h: 2, t: 2});
+    flakes = Array.from({length: Math.max(0, S.flakes | 0)}, () => flake(true));
+    if (CHIM) for (let i = 0; i < 18; i++) { smoke.push(newPuff()); stepPuff(smoke[i], Math.random() * smoke[i].life, 0); }
+    draw(0);
+    if (!reduce) start();
+  };
+  img.src = S.img;
+  function newPuff(){ return {x: CHIM.x + (Math.random() * 4 - 2), y: CHIM.y - 1, vx: 0, vy: -(5 + Math.random() * 3), age: 0, life: 4 + Math.random() * 1.8, seed: Math.random() * 6.28}; }
+  function wind(t){ return WIND * (-6 - 26 * Math.pow(Math.max(0, Math.sin(t * 0.19)), 3) - 7 * Math.max(0, Math.sin(t * 0.67 + 1.3))); }
+  function stepPuff(p, dt, t){ p.age += dt; p.vx += (wind(t) * 0.45 - p.vx) * Math.min(1, dt * 0.7); p.x += p.vx * dt + Math.sin(p.age * 1.8 + p.seed) * 0.12; p.y += p.vy * dt; p.vy *= (1 - 0.06 * dt); }
+  function update(dt, t){
+    const w = wind(t);
+    for (const f of flakes) {
+      const depth = f.s === 3 ? 1.3 : f.s === 2 ? 1 : 0.55;
+      f.x += (w * depth + Math.sin(t * 1.3 + f.ph) * f.sway) * dt; f.y += f.vy * dt;
+      if (f.y > H + 3) Object.assign(f, flake(false));
+      if (f.x < -4) f.x += W + 6; else if (f.x > W + 4) f.x -= W + 6;
+    }
+    // gusts strip powder off the roof
+    if (ROOF && w < -16) {
+      driftAcc += dt * (-w - 14) * 3;
+      while (driftAcc > 1) {
+        driftAcc -= 1;
+        const x = ROOF.x0 + Math.random() * (ROOF.x1 - ROOF.x0);
+        drift.push({x, y: ROOF.y0 + (x - ROOF.x0) * ROOF.slope, vx: w * (1.2 + Math.random() * 0.8), vy: -3 + Math.random() * 8, age: 0, life: 1 + Math.random() * 1.6});
+      }
+    }
+    for (const d of drift) { d.age += dt; d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 6 * dt; }
+    drift = drift.filter(d => d.age < d.life && d.x > -4);
+    if (CHIM) {
+      smokeAcc += dt; while (smokeAcc > PUFF) { smokeAcc -= PUFF; smoke.push(newPuff()); }
+      for (const p of smoke) stepPuff(p, dt, t);
+      smoke = smoke.filter(p => p.age < p.life && p.y > -10);
+    }
+    // fire flicker: targets around the tuned means, spread scaled by fireIntensity (K = 1 is the default tuning)
+    flipT += dt;
+    if (flipT > FLIP) { flipT = 0; flT = lim(0.725 + (Math.random() - 0.5) * 0.55 * K, 0.05, 1); ffT = lim(0.65 + (Math.random() - 0.5) * 0.7 * K, 0.05, 1); for (const g of tongues) g.t = lim(4.5 + (Math.random() - 0.5) * 5 * K, 1, 8); }
+    popT -= dt; if (popT <= 0) { pop = Math.min(1, K); popT = 3 + Math.random() * 5; }
+    pop = Math.max(0, pop - dt * 3);
+    fl += (flT - fl) * Math.min(1, dt * 6); ff += (ffT - ff) * Math.min(1, dt * 10);
+    for (const g of tongues) g.h += (g.t - g.h) * Math.min(1, dt * 14);
+  }
+  function draw(t){
+    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+    ctx.drawImage(img, 0, 0);
+    for (const s of stars) { const a = 0.5 + 0.5 * Math.sin(t * s.sp + s.ph); if (a > 0.55) { ctx.fillStyle = `rgba(255,255,255,${((a - 0.55) * 1.6).toFixed(2)})`; ctx.fillRect(s.x, s.y, 1, 1); } }
+    for (const p of smoke) {
+      const k = p.age / p.life, size = Math.max(1, Math.round(1.4 + p.age * 1.15));
+      ctx.fillStyle = `rgba(206,211,236,${(0.45 * Math.pow(1 - k, 1.3)).toFixed(3)})`;
+      ctx.fillRect(Math.round(p.x - size / 2), Math.round(p.y - size / 2), size, size);
+    }
+    for (const g of tongues) {
+      const h = Math.max(1, Math.min(8, Math.round(g.h)));
+      for (let k = 0; k < h; k++) {
+        ctx.fillStyle = k === h - 1 ? "#FFF4B8" : k >= h - 3 ? "#FFD04F" : k >= 1 ? "#FF8A28" : "#E5531B";
+        ctx.fillRect(g.x, FIRE.base - k, 1, 1);
+      }
+    }
+    // dark phases first, then the bright ones, so the windows visibly breathe
+    if (dim) { ctx.globalAlpha = Math.max(0, (1 - fl) * 0.22 - pop * 0.1); ctx.drawImage(dim, 0, 0); }
+    ctx.globalCompositeOperation = "lighter";
+    if (glow) { ctx.globalAlpha = Math.min(1, 0.1 + 0.32 * fl + 0.12 * pop); ctx.drawImage(glow, 0, 0); }
+    if (fire) { ctx.globalAlpha = Math.min(1, 0.3 + 0.5 * ff); ctx.drawImage(fire, 0, 0); }
+    if (halo) { ctx.globalAlpha = Math.min(1, 0.25 + 0.35 * ff + 0.1 * pop); ctx.drawImage(halo, 0, 0); }
+    if (spill) { ctx.globalAlpha = Math.min(1, 0.3 + 0.35 * fl + 0.12 * pop); ctx.drawImage(spill, 0, 0); }
+    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(236,241,255,0.7)";
+    for (const f of flakes) if (f.s === 1) ctx.fillRect(Math.round(f.x), Math.round(f.y), 1, 1);
+    for (const d of drift) { ctx.fillStyle = `rgba(240,245,255,${(0.85 * (1 - d.age / d.life)).toFixed(2)})`; ctx.fillRect(Math.round(d.x), Math.round(d.y), 1, 1); }
+    ctx.fillStyle = "rgba(246,249,255,0.92)";
+    for (const f of flakes) if (f.s === 2) ctx.fillRect(Math.round(f.x), Math.round(f.y), 2, 2);
+    ctx.fillStyle = "rgba(255,255,255,0.97)";
+    for (const f of flakes) if (f.s === 3) { const x = Math.round(f.x), y = Math.round(f.y); ctx.fillRect(x + 1, y, 1, 3); ctx.fillRect(x, y + 1, 3, 1); }
+  }
+  function frame(ts){
+    if (!running) return;
+    const t = ts / 1000, dt = Math.min(0.05, last ? t - last : 0.016); last = t;
+    update(dt, t);
+    if (ts - lastDraw > FRAME_MS) { lastDraw = ts; draw(t); }
+    requestAnimationFrame(frame);
+  }
+  function start(){ if (running || reduce || !visible || document.hidden || !img.complete) return; running = true; last = 0; requestAnimationFrame(frame); }
+  function stop(){ running = false; }
+  if ("IntersectionObserver" in window) new IntersectionObserver(es => { visible = es[0].isIntersecting; visible ? start() : stop(); }).observe(hero);
+  document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
+})();
+
+/* ================= boot ================= */
+window.addEventListener("resize", () => stackMarkers());
+(async function init(){
+  applyConfig();
+  renderSync(); render();
+  if (location.hash === "#idea" || location.hash === "#dump") { const t = $("#dumpText"); $("#idea").scrollIntoView(); setTimeout(() => t.focus(), 50); }
+  if (!window.claude || typeof window.claude.use !== "function") {
+    $("#active").innerHTML = `<div class="empty">Open this page on claude.ai to load your projects.</div>`; $("#shipped").innerHTML = ""; return;
+  }
+  window.claude.use("sample").then(s => { sample = s; $("#askBox").hidden = !s; }).catch(() => {});
+  db = await window.claude.use("db");
+  if (!db) { $("#active").innerHTML = `<div class="empty">Sign in to claude.ai to load your projects.</div>`; $("#shipped").innerHTML = ""; return; }
+  db.collection("projects").onSnapshot(snap => { projects = snap.docs.map(d => ({id: d.id, ...d.data()})); render(); },
+    err => showNotice("Live updates stopped (" + err.code + "). Reload the page to reconnect."));
+  db.doc("meta/sync").onSnapshot(s => { sync = s.exists ? s.data() : null; renderSync(); }, () => {});
+  db.doc("meta/coach").onSnapshot(s => { coach = s.exists ? s.data() : null; renderDesk(); }, () => {});
+  setInterval(renderSync, 60000);
+})();
+</script>
